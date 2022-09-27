@@ -3,14 +3,14 @@ import { Link } from "react-router-dom";
 import { pluralize } from "../../utils/helpers";
 import { useStoreContext } from "../../utils/GlobalState";
 import { ADD_TO_CART, UPDATE_CART_QUANTITY } from "../../utils/actions";
+import { idbPromise } from "../../utils/helpers";
 
 function ProductItem(item) {
-
   // define a state variable and dispatch() function to update state
   const [state, dispatch] = useStoreContext();
 
- // declare cart as variable to avoid writing state.cart
- const { cart } = state;
+  // declare cart as variable to avoid writing state.cart
+  const { cart } = state;
 
   const addToCart = () => {
     // find cart item with matching id
@@ -22,15 +22,21 @@ function ProductItem(item) {
       dispatch({
         type: UPDATE_CART_QUANTITY,
         _id: _id,
-        purchaseQuantity: parseInt(itemInCart.purchaseQuantity) + 1
+        purchaseQuantity: parseInt(itemInCart.purchaseQuantity) + 1,
+      });
+      // update added quantity in cart in IndexedDB
+      idbPromise("cart", "put", {
+        ...itemInCart,
+        purchaseQuantity: parseInt(itemInCart.purchaseQuantity) + 1,
       });
     } else {
       // call the ADD_TO_CART action
       dispatch({
         type: ADD_TO_CART,
-        product: { ...item, purchaseQuantity: 1 }
+        product: { ...item, purchaseQuantity: 1 },
       });
-
+      // update added item in cart to IndexedDB
+      idbPromise("cart", "put", { ...item, purchaseQuantity: 1 });
     }
   };
 

@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-
 import { useQuery } from "@apollo/client";
 import { useStoreContext } from "../../utils/GlobalState";
 import {
@@ -7,13 +6,15 @@ import {
   UPDATE_CURRENT_CATEGORY,
 } from "../../utils/actions";
 import { QUERY_CATEGORIES } from "../../utils/queries";
+import { idbPromise } from "../../utils/helpers";
 
 function CategoryMenu() {
   const [state, dispatch] = useStoreContext();
 
   const { categories } = state;
 
-  const { data: categoryData } = useQuery(QUERY_CATEGORIES);
+  // destructure categorydata, and loading so can use IndexedDB promise
+  const { loading, data: categoryData } = useQuery(QUERY_CATEGORIES);
 
   useEffect(() => {
     // if categoryData exists or has changed from the response of useQuery, then run dispatch()
@@ -23,8 +24,21 @@ function CategoryMenu() {
         type: UPDATE_CATEGORIES,
         categories: categoryData.categories,
       });
+      // write category data to categories object store in IndexedDB
+      // when save categories to state
+      categoryData.categories.forEach((category) => {
+        idbPromise("categories", "put", category);
+      });
+    } else if (!loading) {
+      // since we're offline, get categories from IndexedDB
+      idbPromise('categories', 'get').then(categories => {
+        dispatch({
+          type: UPDATE_CATEGORIES,
+          categories: categories
+        });
+      });
     }
-  }, [categoryData, dispatch]);
+  }, [categoryData, loading, dispatch]);
   // now when this component loads and response from useQuery() Hook
   // returns, the useEffect() Hook notices categoryData is not undefined
   // anymore and runs the dispatch() function, setting our category data

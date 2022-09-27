@@ -1,12 +1,11 @@
 import React, { useEffect } from "react";
 import { useQuery } from "@apollo/client";
-
 import { useStoreContext } from "../../utils/GlobalState";
 import { UPDATE_PRODUCTS } from "../../utils/actions";
-
-import ProductItem from "../ProductItem";
 import { QUERY_PRODUCTS } from "../../utils/queries";
+import ProductItem from "../ProductItem";
 import spinner from "../../assets/spinner.gif";
+import { idbPromise } from "../../utils/helpers";
 
 function ProductList() {
   // immediately execute the useStoreContext() to retrieve the current
@@ -20,19 +19,33 @@ function ProductList() {
   // implement useEffect()in order to wait for useQuery() response
   useEffect(() => {
     // Once data object returned from useQuery() goes from undefined
-    // to having an actual value
+    // to having an actual value stored
     if (data) {
-      // execute dispatch() function
+      // store it in global state object
       dispatch({
         // it's the UPDATE_PRODUCTS action
         type: UPDATE_PRODUCTS,
         // and it should save the array of product data to global store
         products: data.products,
       });
+
+      // take each product and save to IndexedDB using the helper function
+      data.products.forEach((product) => {
+        idbPromise("products", "put", product);
+      });
+    } else if (!loading) {
+      // because we're now offline, get all data from `products` store in IndexedDB
+      idbPromise("products", "get").then((products) => {
+        // use retrieved data to set global state for offline browsing
+        dispatch({
+          type: UPDATE_PRODUCTS,
+          products: products,
+        });
+      });
     }
     // useStoreContext() executes again,
     // giving us the product data needed display products to the page
-  }, [data, dispatch]);
+  }, [data, loading, dispatch]);
 
   function filterProducts() {
     if (!currentCategory) {
